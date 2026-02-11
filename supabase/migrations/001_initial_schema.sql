@@ -246,7 +246,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.game_logs;
 -- FUNCTIONS
 -- ============================================
 
--- Function to generate unique 5-digit user tag
+-- Function to generate unique 4-digit user tag
 CREATE OR REPLACE FUNCTION generate_user_tag()
 RETURNS TEXT AS $$
 DECLARE
@@ -254,7 +254,7 @@ DECLARE
   tag_exists BOOLEAN;
 BEGIN
   LOOP
-    new_tag := LPAD(FLOOR(RANDOM() * 100000)::TEXT, 5, '0');
+    new_tag := LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
     SELECT EXISTS(SELECT 1 FROM public.profiles WHERE user_tag = new_tag) INTO tag_exists;
     EXIT WHEN NOT tag_exists;
   END LOOP;

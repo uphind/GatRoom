@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,45 +7,88 @@ import {
   Platform,
   ScrollView,
   Alert,
+  TextInput,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 
-export default function LoginScreen() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+type Step = 'email' | 'code';
 
-  const handleEmailAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+export default function LoginScreen() {
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
+  const codeInputs = useRef<(TextInput | null)[]>([]);
+
+  const handleSendCode = async () => {
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email');
       return;
     }
 
     setLoading(true);
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-        // After sign up, redirect to register for profile setup
-        router.replace('/(auth)/register');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+      if (error) throw error;
+      setStep('code');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Something went wrong');
+      Alert.alert('Error', error.message || 'Failed to send code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCodeChange = (text: string, index: number) => {
+    const newCode = [...code];
+    newCode[index] = text;
+    setCode(newCode);
+
+    if (text && index < 5) {
+      codeInputs.current[index + 1]?.focus();
+    }
+
+    // Auto-submit when all digits entered
+    const full = newCode.join('');
+    if (full.length === 6 && newCode.every((d) => d !== '')) {
+      handleVerifyCode(full);
+    }
+  };
+
+  const handleCodeKeyPress = (key: string, index: number) => {
+    if (key === 'Backspace' && !code[index] && index > 0) {
+      codeInputs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerifyCode = async (otp?: string) => {
+    const token = otp || code.join('');
+    if (token.length !== 6) {
+      Alert.alert('Error', 'Please enter the 6-digit code');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token,
+        type: 'email',
+      });
+      if (error) throw error;
+      // Auth context will handle redirect
+    } catch (error: any) {
+      Alert.alert('Invalid Code', 'The code you entered is incorrect. Please try again.');
+      setCode(['', '', '', '', '', '']);
+      codeInputs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
@@ -79,60 +122,100 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="your@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            icon="mail-outline"
-          />
+        {step === 'email' ? (
+          <View style={styles.form}>
+            <Input
+              label="Email"
+              placeholder="your@email.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              icon="mail-outline"
+            />
 
-          <Input
-            label="Password"
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={setPassword}
-            isPassword
-            icon="lock-closed-outline"
-          />
+            <Button
+              title="Continue"
+              onPress={handleSendCode}
+              loading={loading}
+              size="lg"
+              fullWidth
+            />
 
-          <Button
-            title={isSignUp ? 'Create Account' : 'Sign In'}
-            onPress={handleEmailAuth}
-            loading={loading}
-            size="lg"
-            fullWidth
-          />
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
+            <Button
+              title="Continue with Apple"
+              onPress={handleAppleSignIn}
+              variant="secondary"
+              size="lg"
+              fullWidth
+              icon={<Text style={styles.appleIcon}></Text>}
+            />
           </View>
+        ) : (
+          <View style={styles.form}>
+            <Text style={styles.codeTitle}>Check your email</Text>
+            <Text style={styles.codeSubtitle}>
+              We sent a 6-digit code to{'\n'}
+              <Text style={styles.codeEmail}>{email}</Text>
+            </Text>
 
-          <Button
-            title="Continue with Apple"
-            onPress={handleAppleSignIn}
-            variant="secondary"
-            size="lg"
-            fullWidth
-            icon={<Text style={styles.appleIcon}></Text>}
-          />
+            <View style={styles.codeInputs}>
+              {code.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => { codeInputs.current[index] = ref; }}
+                  style={[
+                    styles.codeInput,
+                    digit && styles.codeInputFilled,
+                  ]}
+                  value={digit}
+                  onChangeText={(text) => handleCodeChange(text.slice(-1), index)}
+                  onKeyPress={({ nativeEvent }) =>
+                    handleCodeKeyPress(nativeEvent.key, index)
+                  }
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  selectTextOnFocus
+                  autoFocus={index === 0}
+                />
+              ))}
+            </View>
 
-          <Button
-            title={
-              isSignUp
-                ? 'Already have an account? Sign In'
-                : "Don't have an account? Sign Up"
-            }
-            onPress={() => setIsSignUp(!isSignUp)}
-            variant="ghost"
-            size="md"
-          />
-        </View>
+            <Button
+              title="Verify"
+              onPress={() => handleVerifyCode()}
+              loading={loading}
+              disabled={code.join('').length !== 6}
+              size="lg"
+              fullWidth
+            />
+
+            <Button
+              title="Resend Code"
+              onPress={handleSendCode}
+              variant="ghost"
+              size="md"
+              style={styles.resendBtn}
+            />
+
+            <Button
+              title="Use a different email"
+              onPress={() => {
+                setStep('email');
+                setCode(['', '', '', '', '', '']);
+              }}
+              variant="ghost"
+              size="sm"
+            />
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -169,11 +252,13 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: Spacing.sm,
+    alignItems: 'center',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: Spacing.lg,
+    width: '100%',
   },
   dividerLine: {
     flex: 1,
@@ -188,5 +273,47 @@ const styles = StyleSheet.create({
   appleIcon: {
     color: Colors.text,
     fontSize: 20,
+  },
+  codeTitle: {
+    fontSize: FontSize.xxl,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  codeSubtitle: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.xxl,
+    lineHeight: 22,
+  },
+  codeEmail: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  codeInputs: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xxl,
+  },
+  codeInput: {
+    width: 48,
+    height: 56,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surfaceLight,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    color: Colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  codeInputFilled: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  resendBtn: {
+    marginTop: Spacing.md,
   },
 });

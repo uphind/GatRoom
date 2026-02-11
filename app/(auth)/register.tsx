@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,20 +24,18 @@ export default function RegisterScreen() {
 
   const [step, setStep] = useState(1);
   const [username, setUsername] = useState('');
-  const [nickname, setNickname] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('🃏');
   const [defaultBuyin, setDefaultBuyin] = useState('50');
   const [loading, setLoading] = useState(false);
 
-  const totalSteps = 4;
+  // Generate a stable tag preview that stays the same during the session
+  const previewTag = useMemo(() => generateUserTag(), []);
+
+  const totalSteps = 3;
 
   const handleNext = () => {
     if (step === 1 && !username.trim()) {
       Alert.alert('Error', 'Please enter a username');
-      return;
-    }
-    if (step === 2 && !nickname.trim()) {
-      Alert.alert('Error', 'Please enter a nickname');
       return;
     }
     if (step < totalSteps) {
@@ -62,15 +60,12 @@ export default function RegisterScreen() {
         email: session.user.email,
         username: username.trim(),
         user_tag: userTag,
-        nickname: nickname.trim(),
+        nickname: username.trim(), // use username as display name
         avatar_emoji: selectedEmoji,
         default_buyin: parseInt(defaultBuyin) || 50,
       });
 
       if (error) throw error;
-
-      // Refresh profile in context — the root layout will
-      // detect profile is set and auto-redirect to (tabs)
       await refreshProfile();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create profile');
@@ -85,19 +80,21 @@ export default function RegisterScreen() {
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Choose your username</Text>
             <Text style={styles.stepSubtitle}>
-              A unique 5-digit tag will be generated automatically
+              This is how other players will find you
             </Text>
             <Input
               placeholder="e.g. PokerPro"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
+              autoComplete="off"
               icon="person-outline"
             />
-            {username.trim() && (
+            {username.trim().length > 0 && (
               <View style={styles.tagPreview}>
+                <Text style={styles.tagPreviewLabel}>Your ID will look like</Text>
                 <Text style={styles.tagPreviewText}>
-                  Your tag: {username}#XXXXX
+                  {username.trim()}#{previewTag}
                 </Text>
               </View>
             )}
@@ -106,25 +103,13 @@ export default function RegisterScreen() {
       case 2:
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>What should we call you?</Text>
-            <Text style={styles.stepSubtitle}>
-              This is how other players will see you
-            </Text>
-            <Input
-              placeholder="Your nickname"
-              value={nickname}
-              onChangeText={setNickname}
-              icon="happy-outline"
-            />
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Pick your avatar</Text>
             <Text style={styles.stepSubtitle}>
               Choose an emoji that represents you
             </Text>
+            <View style={styles.selectedPreview}>
+              <Text style={styles.selectedEmojiLarge}>{selectedEmoji}</Text>
+            </View>
             <View style={styles.emojiGrid}>
               {AVATAR_EMOJIS.map((emoji, index) => (
                 <TouchableOpacity
@@ -139,15 +124,12 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <View style={styles.selectedPreview}>
-              <Text style={styles.selectedEmojiLarge}>{selectedEmoji}</Text>
-            </View>
           </View>
         );
-      case 4:
+      case 3:
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Default buy-in amount</Text>
+            <Text style={styles.stepTitle}>Default buy-in</Text>
             <Text style={styles.stepSubtitle}>
               Quick-add amount when joining games
             </Text>
@@ -204,7 +186,6 @@ export default function RegisterScreen() {
               style={[
                 styles.progressDot,
                 i < step && styles.progressDotActive,
-                i === step - 1 && styles.progressDotCurrent,
               ]}
             />
           ))}
@@ -263,9 +244,6 @@ const styles = StyleSheet.create({
   progressDotActive: {
     backgroundColor: Colors.primary,
   },
-  progressDotCurrent: {
-    backgroundColor: Colors.primary,
-  },
   stepIndicator: {
     color: Colors.textMuted,
     fontSize: FontSize.sm,
@@ -290,10 +268,17 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tagPreviewLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginBottom: Spacing.xs,
   },
   tagPreviewText: {
     color: Colors.primary,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontWeight: '700',
   },
   emojiGrid: {
@@ -321,7 +306,7 @@ const styles = StyleSheet.create({
   },
   selectedPreview: {
     alignItems: 'center',
-    marginTop: Spacing.xl,
+    marginBottom: Spacing.xxl,
   },
   selectedEmojiLarge: {
     fontSize: 64,

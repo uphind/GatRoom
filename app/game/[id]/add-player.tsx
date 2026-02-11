@@ -265,7 +265,7 @@ export default function AddPlayerScreen() {
           <View style={{ flex: 1 }}>
             <Input
               label="User #ID (optional)"
-              placeholder="#12345"
+              placeholder="#1234"
               value={userIdSearch}
               onChangeText={setUserIdSearch}
               icon="search-outline"

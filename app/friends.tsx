@@ -75,8 +75,8 @@ export default function FriendsScreen() {
 
   const handleAddFriend = async () => {
     const tag = searchTag.replace('#', '').trim();
-    if (!tag || tag.length !== 5) {
-      Alert.alert('Error', 'Enter a valid 5-digit user ID');
+    if (!tag || tag.length !== 4) {
+      Alert.alert('Error', 'Enter a valid 4-digit user ID');
       return;
     }
     if (!profile) return;
@@ -176,7 +176,7 @@ export default function FriendsScreen() {
         <View style={styles.addRow}>
           <View style={{ flex: 1 }}>
             <Input
-              placeholder="#12345"
+              placeholder="#1234"
               value={searchTag}
               onChangeText={setSearchTag}
               keyboardType="number-pad"
@@ -265,7 +265,7 @@ export default function FriendsScreen() {
           <EmptyState
             icon="people-outline"
             title="No friends yet"
-            subtitle="Add friends by their 5-digit ID to quickly add them to games"
+            subtitle="Add friends by their 4-digit ID to quickly add them to games"
           />
         }
       />

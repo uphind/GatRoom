@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TextInputProps,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
@@ -26,23 +27,36 @@ export default function Input({
   ...props
 }: InputProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.wrapper}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.container, error && styles.containerError]}>
+      <View
+        style={[
+          styles.container,
+          focused && styles.containerFocused,
+          error && styles.containerError,
+        ]}
+      >
         {icon && (
           <Ionicons
             name={icon}
             size={20}
-            color={Colors.textMuted}
+            color={focused ? Colors.primary : Colors.textMuted}
             style={styles.icon}
           />
         )}
         <TextInput
           style={[styles.input, style]}
           placeholderTextColor={Colors.textMuted}
+          selectionColor={Colors.primary}
           secureTextEntry={isPassword && !showPassword}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          autoCorrect={false}
+          spellCheck={false}
+          {...(Platform.OS === 'web' ? { autoComplete: 'off' as any } : {})}
           {...props}
         />
         {isPassword && (
@@ -63,6 +77,7 @@ export default function Input({
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: Spacing.lg,
+    width: '100%',
   },
   label: {
     color: Colors.textSecondary,
@@ -73,12 +88,15 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
-    minHeight: 48,
+    minHeight: 52,
+  },
+  containerFocused: {
+    borderColor: Colors.primary,
   },
   containerError: {
     borderColor: Colors.danger,
@@ -89,7 +107,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: Colors.text,
-    fontSize: 16, // Must be >= 16 to prevent iOS Safari auto-zoom
+    fontSize: 16, // >= 16 to prevent iOS Safari auto-zoom
     paddingVertical: Spacing.md,
   },
   error: {
