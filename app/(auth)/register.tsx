@@ -48,9 +48,13 @@ export default function RegisterScreen() {
   };
 
   const handleComplete = async () => {
-    if (!session?.user?.id) return;
-    setLoading(true);
+    if (!session?.user?.id) {
+      Alert.alert('Session Error', 'No active session. Please sign in again.');
+      router.replace('/(auth)/login');
+      return;
+    }
 
+    setLoading(true);
     try {
       const userTag = generateUserTag();
       const { error } = await supabase.from('profiles').insert({
@@ -64,11 +68,12 @@ export default function RegisterScreen() {
       });
 
       if (error) throw error;
+
+      // Refresh profile in context — the root layout will
+      // detect profile is set and auto-redirect to (tabs)
       await refreshProfile();
-      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create profile');
-    } finally {
       setLoading(false);
     }
   };

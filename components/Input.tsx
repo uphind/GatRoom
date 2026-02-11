@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: Colors.text,
-    fontSize: FontSize.md,
+    fontSize: 16, // Must be >= 16 to prevent iOS Safari auto-zoom
     paddingVertical: Spacing.md,
   },
   error: {

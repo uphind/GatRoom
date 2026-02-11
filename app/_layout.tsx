@@ -18,19 +18,22 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!session) {
+      // No session -> go to login
       if (!inAuthGroup) {
         router.replace('/(auth)/login');
       }
     } else if (!profile) {
+      // Has session but no profile -> go to onboarding
       if (!inAuthGroup) {
         router.replace('/(auth)/register');
       }
     } else {
+      // Has session AND profile -> go to main app
       if (inAuthGroup) {
         router.replace('/(tabs)');
       }
     }
-  }, [session, profile, loading, segments]);
+  }, [session, profile, loading]); // removed segments to avoid redirect loops
 
   if (loading) {
     return (
